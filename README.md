@@ -5,7 +5,7 @@ how a multi-step setup - unlock, start the backend, wait for it, pull a model,
 start an engine - becomes one reproducible command.
 
 ```
-example/<name>.ian     one file = one recipe (this repo)
+examples/<name>.ian     one file = one recipe (this repo)
         |
         | isann recipe pull
         v
@@ -16,12 +16,12 @@ This repo has two folders:
 
 | Folder | What is in it |
 |---|---|
-| `example/` | Recipes meant to be used. Start here. |
+| `examples/` | Recipes meant to be used. Start here. |
 | `test/` | Conformance tests for the recipe language. **Many fail on purpose** - see below. |
 
 ## File format
 
-This is `example/llama-start.ian`, with its header comment trimmed:
+This is `examples/llama-start.ian`, with its header comment trimmed:
 
 ```ian
 #pragma ISANN 0.1.20
@@ -42,8 +42,8 @@ docker wait --engine llama;   # block until llama's HTTP endpoint responds
 refused by the loader - that is the version gate, not a comment.
 
 An optional `# name:` / `# author:` / `# description:` / `# version:` header
-carries metadata shown by `isann recipe list`. `example/inproc-smoke.ian` and
-`example/secure-unlock.ian` use it:
+carries metadata shown by `isann recipe list`. `examples/inproc-smoke.ian` and
+`examples/secure-unlock.ian` use it:
 
 ```ian
 #pragma ISANN 0.1.20
@@ -85,7 +85,7 @@ echo "node=${info.node_id}";
 echo "gpu=${info.hardware.gpu.name}";
 ```
 
-(from `example/inproc-smoke.ian` and `test/inproc.ian`)
+(from `examples/inproc-smoke.ian` and `test/inproc.ian`)
 
 Commands registered for in-process dispatch run inside the same `isann` process
 (no fork), and return native values straight into memory. `isann recipe exec
@@ -138,37 +138,206 @@ recipe serves several nodes without hard-coding a per-node alias in plain text.
 For unattended runs, put the passphrase in the environment instead and drop the
 `read` line - `auth unlock` inherits `ISANN_PASSPHRASE`.
 
-## What recipes may not do
+## The policy gate - read this before your first run
 
-Recipe management commands are blocked when called from inside a recipe:
+A recipe is a script driving the operator's own CLI. A recipe from the market is
+therefore **untrusted code with your command line in its hands**, so a node
+starts with the gate **closed** and the operator opens what a recipe needs.
+
+A fresh node refuses everything, including read-only commands:
+
+```
+[1/9] x recipe policy: `version -json` is blocked - default deny (0s)
+isann: recipe exec: inproc-smoke.ian:18: ver := version -json -
+       recipe policy: `version -json` is blocked - default deny
+```
+
+Nothing is wrong. Nothing has been configured yet.
+
+### How the gate decides
+
+```bash
+isann policy list --rule recipe
+```
+```
+   (pre)  deny   auth.mode                 immutable - no rule can override
+      -    (no operator rules)
+   (def)  deny   - nothing matched
+```
+
+Three layers, checked **top to bottom, first match wins**:
+
+| Layer | What it is | Can you change it |
+|---|---|---|
+| `(pre)` | pre-chain. Checked **before** your rules | **no** - compiled in |
+| `1. 2. 3. ...` | your rules, in order | yes - `policy add` / `rm` / `move` |
+| `(def)` | the answer when **nothing above matched** | yes - `--default` |
+
+On a fresh node the middle layer is empty, so every command falls through to
+`(def) deny`. That is why even `version` is refused.
+
+### Reading a command as a pattern
+
+Rules name commands as `namespace.verb`:
+
+```
+isann auth mode      ->  auth.mode
+isann docker rm      ->  docker.rm
+isann model pull     ->  model.pull
+```
+
+| Pattern | Covers |
+|---|---|
+| `docker.rm` | that one verb |
+| `docker` | the whole namespace (`docker.*`) |
+| `*.rm` | `rm` in every namespace |
+| `*` | everything (a catch-all - anything below it is dead, and `policy list` marks it UNREACHABLE) |
+
+### `(pre)` - the one thing nobody can open
+
+```
+(pre)  deny   auth.mode   immutable - no rule can override
+```
+
+`isann auth mode` switches the node's inference door between `public` (anonymous
+callers allowed) and `protected`. A recipe that flipped it could open your node
+silently - and **snapshot cannot undo it**, because `auth mode` writes
+`conf/isannd.json`, which the snapshot scope deliberately excludes.
+
+Every other reachable mutation lands under `artifacts/` and is recoverable. That
+is the bar for the pre-chain, and it is why the list has exactly one entry.
+
+`--allow auth.mode` is refused rather than accepted-and-ignored, and
+`--default allow` does not reach it either. Calling `isann auth mode` yourself
+from a shell is unaffected - only from inside a recipe.
+
+## When a recipe is refused
+
+### 1. Ask what it needs, without running it
+
+```bash
+isann recipe exec inproc-smoke.ian -dry-run
+```
+
+`-dry-run` prints the plan and **preflights every statement against the gate**,
+listing only the ones that would be refused. One command tells you the whole
+allow-list instead of discovering it one failure at a time.
+
+It checks statements inside `IF` blocks too, without evaluating the condition -
+warning about a line that may not run is cheaper than staying silent about one
+that does.
+
+### 2. Open what it needs
+
+```bash
+isann policy add --rule recipe --allow "version,info,list.nodes"
+isann policy list --rule recipe
+```
+```
+   (pre)  deny   auth.mode                 immutable - no rule can override
+      1   allow  version
+      2   allow  info
+      3   allow  list.nodes
+   (def)  deny   - nothing matched
+```
+
+Quote the patterns - `*` is a shell glob.
+
+### Or open everything (a node where you only run your own recipes)
+
+```bash
+isann policy add --rule recipe --default allow
+```
+
+This does not add a rule. It changes the **fallback**: "nothing matched" now
+means allow instead of deny.
+
+```
+before:  no rules  +  default deny   ->  everything refused
+after:   no rules  +  default allow  ->  everything passes (except the pre-chain)
+```
+
+Then block the dangerous ones, remembering that **order decides**:
+
+```bash
+isann policy add --rule recipe --default allow
+isann policy add --rule recipe --deny "*.rm" --at 1
+```
+
+`--at 1` puts the deny at the top. Without it the rule is appended below, and
+`--default allow` never gets consulted for `*.rm` anyway - but a later `allow`
+rule above it would win. Use `policy move <pattern> --to <N>` to reorder.
+
+Back to a closed node:
+
+```bash
+isann policy add --rule recipe --default deny
+```
+
+### What is never gated
+
+- **Builtins** - `echo`, `var`, `sleep`, `func read`. They touch only the
+  recipe's own variables, so there is nothing to gate.
+- **Everything else goes through the chain.** There is no read-only exemption.
+  An earlier version waved `ls`/`info` through on the grounds that reads cannot
+  damage a node; that was wrong twice - it made "deny by default" a half-truth
+  the operator never asked for, and reads are not uniformly harmless
+  (`cred list` enumerates credential names, `list nodes` exposes peer topology
+  and owner addresses).
+
+## What recipes may not do at all
+
+Separately from the policy chain, recipe-management commands are refused inside
+a recipe. No policy opens these:
 
 | Blocked | Why |
 |---|---|
 | `recipe exec` / `recipe ls` | stops a recipe fanning out into more recipes |
 | `recipe rm` | data-loss vector |
 | `recipe pull` | chain-fetch attack (A pulls B pulls C ...) |
+| `market install` | same chain-attack shape - use `app pull <url>` for files |
 
 The runtime refuses them before dispatch, so the recipe aborts with a clear
 error rather than doing the damage.
 
 ## Install and run
 
-Use the **raw** URL. A `github.com/.../blob/...` (or `/tree/...`) address serves
-an HTML page, not the file.
+Paste the address straight from the GitHub page - both shapes work:
 
 ```bash
-# from this repo
-isann recipe pull \
-  https://raw.githubusercontent.com/isannai/recipes/main/example/llama-start.ian
+# a FOLDER: installs every .ian in it (one file = one recipe)
+isann recipe pull https://github.com/isannai/recipes/tree/main/examples
 
-# pin to a commit so the content can never change under you
-isann recipe pull \
-  https://raw.githubusercontent.com/isannai/recipes/<commit-sha>/example/llama-start.ian
+# a FILE: installs just that one
+isann recipe pull https://github.com/isannai/recipes/blob/main/examples/llama-start.ian
+```
 
-# run a stored recipe by name
+The ref is pinned to its commit before anything downloads, so a folder arrives
+as one snapshot. Files that are not `.ian` are reported as skipped rather than
+silently ignored, and sub-folders are not descended into.
+
+```
+recipe from https://github.com/isannai/recipes/tree/<commit-sha>/examples
+
+NAME               RESULT
+inproc-smoke       ok
+interactive-smoke  ok
+llama-start        ok
+...
+
+7 installed, 0 skipped, 0 failed
+```
+
+`--name` applies to a **single-file** source only; a folder takes each name from
+its own file.
+
+Then run:
+
+```bash
+# a stored recipe by name
 isann recipe exec llama-start
 
-# run a file directly (no install)
+# a file directly (no install)
 isann recipe exec ./llama-start.ian
 
 # with the passphrase supplied non-interactively
@@ -177,6 +346,16 @@ ISANN_PASSPHRASE=... isann recipe exec llama-start
 
 A bare name resolves from the store; anything containing a path separator or
 ending in `.ian` is read from disk.
+
+### Re-running
+
+`recipe pull` is idempotent: an already-installed recipe is skipped with its
+reason and exits 0. Add `-force` to overwrite.
+
+```
+NAME         RESULT
+llama-start  skip - already installed - artifacts/addon/recipes/llama-start.ian
+```
 
 ```bash
 isann recipe list             # what is installed, with content ids and source
@@ -199,7 +378,7 @@ Two ordering rules matter in practice:
    blocks until the engine's HTTP probe actually responds. Run it before the
    first inference.
 
-## `example/` - the recipes here
+## `examples/` - the recipes here
 
 | File | What it does | Needs isannd |
 |---|---|---|
