@@ -1,0 +1,11 @@
+#pragma ISANN 0.1.20
+# Smoke recipe for v2: variable capture + ${expansion} + echo / sleep.
+# Run with: isann recipe exec examples/recipes/smoke-vars.ian
+#
+# version captures isannd output (must be `-json`), then echo extracts a field.
+
+ver := version -json;
+echo "isann version = ${ver.isann}";
+echo "isannd version = ${ver.isannd}";
+sleep 100ms;
+echo "done";

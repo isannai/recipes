@@ -1,0 +1,19 @@
+#pragma ISANN 0.1.20
+# Wait for the llama engine to be FULLY ready before the first inference:
+# backend up -> container started -> HTTP endpoint actually responding.
+#
+#   isann recipe exec examples/recipes/wait-llama.ian
+#
+# `docker wait` is the unified readiness wait:
+#   docker wait                  -> WSL + docker backend running
+#   docker wait --engine llama   -> the llama engine's HTTP probe reports ready (http_ok)
+# Tune with --timeout <sec> / --interval <sec> (defaults 300 / 30).
+
+requires:
+  vram: 4G+
+
+docker warmup;                              # fire the WSL + docker boot (async)
+docker wait;                                # backend (WSL + dockerd) ready
+docker create llama;                        # create + start (idempotent)
+docker wait --engine llama --timeout 180;   # llama HTTP endpoint actually responding
+echo "llama ready - first inference now safe";
