@@ -1,0 +1,31 @@
+#pragma ISANN 0.1.20
+# name: interactive-smoke
+# author: iSANN team
+# description: Smoke for M20 read builtin + M21 env expansion
+# version: 1.0.0
+#
+# Run:
+#   isann recipe exec examples/recipes/interactive-smoke.ian
+#
+# Feeds keyboard input. To run non-interactively with piped input:
+#   echo -e "Hello\nworld" | isann recipe exec examples/recipes/interactive-smoke.ian
+#
+# M21 env demo also expects:
+#   ISANN_RECIPE_GREETING=hi isann recipe exec ...
+
+# M21 - read OS env
+echo "shell PATH starts with: ${env.PATH}";
+echo "greeting from env: ${env.ISANN_RECIPE_GREETING}";
+
+# M20 - read keyboard input
+user_name := func read "Your name: ";
+echo "hello, ${user_name}";
+
+# read into a second variable
+fav_color := func read "Favorite color: ";
+echo "${user_name} likes ${fav_color}";
+
+# -secret form (echo suppressed when TTY)
+# Uncomment to test:
+# pass := func read -secret "Passphrase (hidden): ";
+# echo "got passphrase of length ${pass.length}";

@@ -1,0 +1,32 @@
+#pragma ISANN 0.1.20
+# llama-start.ian - start the llama (coding) engine from a cold node.
+#
+# Run with the keystore passphrase in the environment so `auth unlock` is
+# non-interactive (the unlock subprocess reads ISANN_PASSPHRASE):
+#
+#   ISANN_PASSPHRASE=... isann recipe exec examples/recipes/llama-start.ian
+#
+# Order matters:
+#   1. unlock        - get an operator session (token saved to disk, shared by
+#                      every following subprocess)
+#   2. mesh provider - host-native inference process (no docker needed)
+#   3. warmup        - fire the WSL + docker boot (async; returns immediately).
+#                      isannd retries the flaky cold dockerd start internally.
+#   4. wait          - BLOCK until docker is actually running. Without this, the
+#                      next `docker start` races ahead and fails with "no docker
+#                      backend available". (The recipe runner has no per-statement
+#                      timeout, so it just waits.)
+#   5. docker start  - backend is ready, so this succeeds.
+#
+# Re-running is safe (idempotent): already-unlocked -> session reissued,
+# already-running mesh/engine -> noop, backend already up -> warmup+wait return at once.
+
+requires:
+  vram: 4G+
+
+auth unlock --account me;
+mesh start provider;
+docker warmup;                # fire WSL + docker boot (async; isannd retries flaky cold start)
+docker wait;                  # block until the docker backend is running
+docker start llama;
+docker wait --engine llama;   # block until llama's HTTP endpoint actually responds
