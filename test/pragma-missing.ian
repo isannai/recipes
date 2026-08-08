@@ -1,0 +1,8 @@
+# NOTE: this recipe intentionally OMITS the `#pragma ISANN <version>`
+# directive on its first line. The runner must refuse to load it.
+#
+# Expect: exit != 0, error mentions `#pragma ISANN`.
+#
+#   isann recipe exec pragma-missing.ian
+
+echo "UNREACHABLE";

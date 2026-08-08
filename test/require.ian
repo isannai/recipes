@@ -1,0 +1,12 @@
+#pragma ISANN 0.1.20
+# M13 - `require`/`assert` runtime assert (pass path). Pure builtins, no isannd.
+# Expect exit 0.
+#
+#   isann recipe exec require.ian
+
+var status = ready;
+require ${status} == ready, "status must be ready";
+require ${status} != booting, "status must not be booting";
+require ${status}, "status must be set (truthy)";
+assert ${status} == ready;
+echo "m13 require ok";

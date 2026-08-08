@@ -1,0 +1,12 @@
+#pragma ISANN 0.1.20
+# M20 - `func read "prompt"` stdin capture. `read` is a function (reached via
+# the `func` namespace); the captured line lands in the `:=` variable. Drives
+# via piped input so the harness does not need a TTY:
+#
+#   echo -e "alice\nblue" | isann recipe exec read.ian
+#
+# Expect: exit 0, output mentions both captured values.
+
+user_name := func read "name: ";
+fav_color := func read "color: ";
+echo "m20 read ok user=${user_name} color=${fav_color}";

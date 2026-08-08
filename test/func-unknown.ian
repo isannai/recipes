@@ -1,0 +1,9 @@
+#pragma ISANN 0.1.20
+# M20 negative - `func` is the namespace for FUNCTIONS (only `read`). Using it
+# on a namespace command (or a typo) must fail with a clear error so the
+# operator notices the misuse immediately.
+#
+# Expect: exit != 0, error mentions "not a function".
+
+result := func docker ps;
+echo "UNREACHABLE";

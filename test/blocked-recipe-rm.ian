@@ -1,0 +1,10 @@
+#pragma ISANN 0.1.20
+# M15 negative - `recipe rm` inside a recipe is a data-loss vector (a
+# malicious script could wipe other recipes). The runtime blocks it.
+#
+# Expect: exit != 0, error mentions `recipe rm`.
+#
+#   isann recipe exec blocked-recipe-rm.ian
+
+recipe rm anything;
+echo "UNREACHABLE";

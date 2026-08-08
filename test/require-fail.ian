@@ -1,0 +1,9 @@
+#pragma ISANN 0.1.20
+# M13 (negative) - a failed `require` ABORTS the recipe with its message.
+# Expect exit 1, the message shown, and the line after must NOT run.
+#
+#   isann recipe exec require-fail.ian   # -> exit 1
+
+var status = booting;
+require ${status} == ready, "status must be ready (was booting)";
+echo "UNREACHABLE - require should have aborted";

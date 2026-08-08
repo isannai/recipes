@@ -1,0 +1,10 @@
+#pragma ISANN 0.1.20
+# M21 negative - env values are flat strings, no nested traversal. Trying
+# `${env.HOME.x}` (or any continuation after the env-name segment) must
+# error out so a typo gets caught at expansion time instead of producing
+# silent garbage.
+#
+# Expect: exit != 0, error mentions "env" and "continuation" (or similar).
+
+echo "value=${env.PATH.subfield}";
+echo "UNREACHABLE";

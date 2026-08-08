@@ -1,0 +1,7 @@
+#pragma ISANN 0.1.20
+# M12 fragment with REAL commands (not just builtins) - a probe + require.
+# Included by include-cmd.ian. Proves include runs actual commands and
+# the captured variable lands in the shared Memory.
+node := info -json;                                    # real command (probe)
+require ${node.node_id}, "node must be registered";
+echo "m12 fragment: probed node=${node.node_id}";

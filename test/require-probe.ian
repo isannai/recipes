@@ -1,0 +1,11 @@
+#pragma ISANN 0.1.20
+# M13 - the real pattern: PROBE node state with a command, capture it, then
+# `require` on a field before continuing. Here `info -json` is the probe.
+# Needs isannd running.
+#
+#   isann recipe exec require-probe.ian
+
+node := info -json;                                          # probe this node
+require ${node.node_id}, "node must be registered";          # truthy
+require ${node.hardware.gpu.available}, "this recipe needs a GPU";
+echo "m13 probe+require ok - gpu=${node.hardware.gpu.name}";

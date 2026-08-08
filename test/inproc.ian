@@ -1,0 +1,17 @@
+#pragma ISANN 0.1.20
+# M10 - in-process dispatch + capture. `var := cmd -json` runs in the SAME isann
+# process (no fork-self) and returns native Go values into Memory; `${path}`
+# walks them (M7). Run with `-fork` to exercise the subprocess path instead -
+# both must produce identical output. Needs isannd running.
+#
+#   isann recipe exec        inproc.ian   # in-process
+#   isann recipe exec -fork  inproc.ian   # subprocess
+
+info := info -json;
+echo "m10 node=${info.node_id}";
+echo "m10 gpu=${info.hardware.gpu.name}";
+
+# multiple in-process namespaces (list)
+list nodes -json -pretty;
+
+echo "m10 in-process ok";

@@ -1,0 +1,11 @@
+#pragma ISANN 0.1.20
+# M12 - `include "<path>";` inlines another recipe's statements at parse time
+# (path relative to this file). The fragment's `var frag_var` is visible after,
+# proving the inlined statements run in the SAME Memory. Pure builtins, no isannd.
+# Expect exit 0.
+#
+#   isann recipe exec include.ian
+
+echo "m12 main start";
+include "fragment.ian";
+echo "m12 main end (frag_var=${frag_var})";

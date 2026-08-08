@@ -1,0 +1,11 @@
+#pragma ISANN 0.1.20
+# M12 - include a fragment that RUNS REAL COMMANDS (a probe), then use its
+# captured result. The included `node := info -json` executes here, and
+# ${node...} is available afterwards (shared Memory). Needs isannd.
+# Expect exit 0.
+#
+#   isann recipe exec include-cmd.ian
+
+echo "m12-cmd main start";
+include "fragment-probe.ian";
+echo "m12-cmd main end - gpu=${node.hardware.gpu.name}";

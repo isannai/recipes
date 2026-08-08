@@ -1,0 +1,5 @@
+#pragma ISANN 0.1.20
+# M12 fragment - included by include.ian. A fragment is just statements
+# (NO `requires:` of its own). Its `var` shares the including recipe's Memory.
+var frag_var = from_fragment;
+echo "m12 fragment ran, frag_var=${frag_var}";

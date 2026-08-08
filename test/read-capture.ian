@@ -1,0 +1,13 @@
+#pragma ISANN 0.1.20
+# M20 - capture form of the `read` function. `read` lives in the `func`
+# namespace (`func read "prompt"`), and `name := func read ...` captures the
+# line into a variable - mirroring namespace captures (`v := docker ps -json`).
+# `func` is the namespace for functions (only `read`).
+#
+#   echo -e "alice\nblue" | isann recipe exec read-capture.ian
+#
+# Expect: exit 0, captured values echoed.
+
+user_name := func read "name: ";
+fav_color := func read "color: ";
+echo "m20 capture ok user=${user_name} color=${fav_color}";

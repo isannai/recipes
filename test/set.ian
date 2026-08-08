@@ -1,0 +1,17 @@
+#pragma ISANN 0.1.20
+# M11 - `var <name> = <value>;` constant assignment + ${path} expansion.
+# Pure statements - needs NO isannd. Expect exit 0.
+#
+#   isann recipe exec set.ian
+
+var engine = llama;
+var ttl = 60s;
+echo "set1 engine=${engine} ttl=${ttl}";
+
+# multi-token value -> space-joined into one string
+var greeting = hello world;
+echo "set2 greeting=[${greeting}]";
+
+# ${path} expansion happens INSIDE the value before storing
+var combined = ${engine}-${ttl};
+echo "set3 combined=${combined}";

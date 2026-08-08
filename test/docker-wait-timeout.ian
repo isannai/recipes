@@ -1,0 +1,13 @@
+#pragma ISANN 0.1.20
+# `docker wait --engine` negative test - must TIME OUT when the engine never
+# becomes ready. `__nope__` is a nonexistent engine, so its HTTP probe never
+# reports http_ok; `docker wait` polls until the 2s timeout and exits non-zero,
+# so the recipe ABORTS - expect exit 1, and the line after must NOT run.
+# (This replaces the old `wait_for docker probe` test - wait_for was removed;
+#  engine/backend waiting is now `docker wait` / `docker wait --engine`.)
+# Needs isannd running (probe goes through isannd).
+#
+#   isann recipe exec docker-wait-timeout.ian   # -> exit 1
+
+docker wait --engine __nope__ --timeout 2 --interval 1;
+echo "UNREACHABLE - docker wait should have timed out";

@@ -1,0 +1,13 @@
+#pragma ISANN 0.1.20
+# M14/M15/M17 negative - recipe-management commands (ls/rm/pull/exec) MUST
+# be blocked when invoked from inside a recipe. The runtime guards them
+# before dispatch so that a malicious recipe cannot fan out to more recipes
+# or wipe local files.
+#
+# Expect: exit != 0, error message mentions `recipe ls` and "cannot run".
+#
+#   isann recipe exec blocked-recipe-ls.ian
+
+echo "about to call blocked recipe ls";
+recipe ls;
+echo "UNREACHABLE - this should never print";

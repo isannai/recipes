@@ -1,0 +1,10 @@
+#pragma ISANN 0.1.20
+# M17 negative - `recipe pull` inside a recipe is a chain-attack vector
+# (recipe A fetches recipe B fetches recipe C ...). The runtime blocks it.
+#
+# Expect: exit != 0, error mentions `recipe pull`.
+#
+#   isann recipe exec blocked-recipe-pull.ian
+
+recipe pull "https://example.com/anything.ian";
+echo "UNREACHABLE";

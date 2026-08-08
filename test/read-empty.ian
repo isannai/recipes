@@ -1,0 +1,9 @@
+#pragma ISANN 0.1.20
+# M20 negative - `read` is a function and must be called via the `func`
+# namespace (`func read "prompt"` / `name := func read "prompt"`). A bare
+# `read` is rejected so a typo can't silently no-op.
+#
+# Expect: exit != 0, error mentions "func read".
+
+read;
+echo "UNREACHABLE";
