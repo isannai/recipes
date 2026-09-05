@@ -1,0 +1,35 @@
+#pragma ISANN 0.1.20
+# install-llama-medium.ian — llama with a 14B model. Wants a 12GB+ card.
+#
+# 🔴 NEEDS ITS PROFILE. The shipped .env points at the small model, so pulling
+# 14B weights and stopping there leaves the engine loading 1.5B while 9GB sits
+# unused. `profile use` is what pairs them; without it this is
+# install-llama-small with a wasted download.
+#
+# requires: 12G+ because Q4_K_M of a 14B model is ~9GB of weights and the KV
+# cache wants room on top. An 8GB card loads and then thrashes, which reads as
+# "the node is slow" rather than "the node is wrong".
+
+requires:
+  vram: 12G+
+
+# Who owns this node. Asked rather than hard-coded: "me" is only the alias the
+# bootstrap suggests, and a recipe that assumes it fails on every node where
+# someone typed something else.
+alias := func read "account alias [me]: ";
+auth unlock --account ${alias};
+
+# .env BEFORE the download. If the profile is missing the run stops here, which
+# is the cheap failure; stopping after 9GB is the expensive one.
+profile use llama medium;
+
+model pull https://huggingface.co/bartowski/Qwen2.5-14B-Instruct-GGUF/resolve/main/Qwen2.5-14B-Instruct-Q4_K_M.gguf --engine llama --kind model --name Qwen2.5-14B-Q4_K_M;
+
+docker warmup;
+docker wait;
+
+docker create llama -prepare;
+
+# 300s rather than 180: 9GB has to be read off disk and into VRAM before the
+# endpoint answers.
+docker wait --engine llama --timeout 300;

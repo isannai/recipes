@@ -1,0 +1,48 @@
+#pragma ISANN 0.1.20
+# install-llama-small.ian — llama on a small GPU (4GB class), from cold.
+#
+# WHY THIS EXISTS. The hard part of standing up an engine is not the commands,
+# it is `.env`: MODEL there names a directory that must already hold the right
+# file. Get one character wrong and the container starts, finds nothing, and
+# says little about why.
+#
+#     MODEL=Qwen2.5-1.5B-Q4_K_M/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf
+#              ^ --name                ^ the file inside it
+#
+# profiles/llama/small.env carries that line, so `profile use` and the download
+# below always agree. Change one and you must change the other - see
+# install-llama-medium.ian for the bigger pair.
+#
+# Re-running is safe. An installed model skips, a running container is a noop,
+# an already-warm backend returns at once.
+
+requires:
+  vram: 4G+
+
+# Who owns this node. Asked rather than hard-coded: "me" is only the alias the
+# bootstrap suggests, and a recipe that assumes it fails on every node where
+# someone typed something else.
+alias := func read "account alias [me]: ";
+auth unlock --account ${alias};
+
+# .env FIRST, and explicitly. Trusting whatever .env happens to be there means
+# this recipe quietly serves someone else's model on a node where another
+# profile was applied.
+profile use llama small;
+
+# Then the model. Creating the engine before the file is in place produces a
+# container with nothing to load.
+model pull https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf --engine llama --kind model --name Qwen2.5-1.5B-Q4_K_M;
+
+# Wake WSL + dockerd before asking docker to do work. warmup returns at once
+# (fire-and-forget); wait is what blocks.
+docker warmup;
+docker wait;
+
+# -prepare assembles the .temp view from the .env we just applied, so the
+# hardlinks match this profile rather than the previous one.
+docker create llama -prepare;
+
+# "running" is not "answering". This blocks on the HTTP endpoint, which is what
+# a caller actually needs. 180s covers a cold model load on a slow disk.
+docker wait --engine llama --timeout 180;

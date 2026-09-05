@@ -1,0 +1,32 @@
+#pragma ISANN 0.1.20
+# install-passenger.ian — a node that only CALLS other nodes.
+#
+# No engine, no model, no docker, no GPU. `infer --nodes` has isannd dial the
+# peer directly, so nothing runs locally and there is nothing to serve. Hence no
+# `requires:` block: a laptop on integrated graphics is a fine passenger.
+#
+# Two rendezvous verbs, and they are not interchangeable:
+#
+#     rv use    the default for QUERIES  - where this node looks for others
+#     rv home   where this node REGISTERS - what a provider needs
+#
+# A passenger wants `use`. Setting `home` too is harmless but advertises a node
+# that is not offering anything.
+
+# Who owns this node. Asked rather than hard-coded: "me" is only the alias the
+# bootstrap suggests, and a recipe that assumes it fails on every node where
+# someone typed something else.
+alias := func read "account alias [me]: ";
+auth unlock --account ${alias};
+
+# The rendezvous is how nodes find each other. Asked, not hard-coded: this
+# address differs per network, and a wrong one here is silent - commands just
+# find nobody.
+rv_url := func read "rendezvous url [https://110.44.52.98:9000]: ";
+rv add --alias kr --url ${rv_url};
+rv use --alias kr;
+
+# Who is online right now. This reads the indexer catalogue rather than the RV,
+# so it works before anything is bookmarked - and it is where you get the id to
+# put after --nodes.
+rv list -remote;

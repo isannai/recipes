@@ -1,0 +1,36 @@
+#pragma ISANN 0.1.20
+# install-sd-small.ian — Stable Diffusion 1.5 at 512x512, from cold.
+#
+# Same .env contract as the llama recipes, with one extra field. SD keeps models
+# per ARCHITECTURE, so both have to line up:
+#
+#     ARCH=sd15
+#     MODEL=v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors
+#
+# which is why the pull carries --arch as well as --name. Point --arch elsewhere
+# and the file lands in a tree the .temp view never assembles.
+#
+# 🔴 SD IS NOT A FAUCET ENGINE. The prober grades text only, so an image node
+# earns nothing by being public - and opening image generation to anonymous
+# callers is a different exposure than opening a text model. Keep this node
+# protected unless you have decided otherwise. See GLink
+# docs/TODO/20260831/infer-billing.md.
+
+requires:
+  vram: 4G+
+
+# Who owns this node. Asked rather than hard-coded: "me" is only the alias the
+# bootstrap suggests, and a recipe that assumes it fails on every node where
+# someone typed something else.
+alias := func read "account alias [me]: ";
+auth unlock --account ${alias};
+
+profile use sd small;
+
+model pull https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors --engine sd --kind model --arch sd15 --name v1-5-pruned-emaonly;
+
+docker warmup;
+docker wait;
+
+docker create sd -prepare;
+docker wait --engine sd --timeout 300;
