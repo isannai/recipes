@@ -33,3 +33,35 @@ docker create llama -prepare;
 # 300s rather than 180: 9GB has to be read off disk and into VRAM before the
 # endpoint answers.
 docker wait --engine llama --timeout 300;
+
+# The engine answers on this machine now, but nothing OUTSIDE it can reach the
+# engine yet. /svc/* is served only while a station mesh has bound door 7443 and
+# overridden its role; with no station the door stays role=passenger and every
+# remote request gets a flat 404. The node runs, and shares nothing.
+#
+# Two commands on purpose - there is no flag that does both:
+#
+#     mesh start   right now      (dies on the next isannd restart)
+#     mesh on      every boot     (does not spawn it now)
+#
+# Assumes the connector is already installed. If `mesh start` says it does not
+# know the name, pull it first: `isann mesh pull isann/station`.
+mesh start station;
+mesh on station;
+
+# LAST, on purpose: this is what makes the node FINDABLE, and a node should not
+# be advertised before it can answer. Everything above has run, so the engine is
+# already serving by the time the entry appears.
+#
+# Not optional. Without a bookmark isannd has no RV to register to - it logs
+# "no RV selected" once and goes quiet, so the node never shows up in
+# `rv list -remote` and NAT'd peers cannot dial it. Asked rather than
+# hard-coded: the address differs per network.
+#
+# `home`, not `use`. They are not interchangeable:
+#
+#     rv home   where this node REGISTERS - what a serving node needs
+#     rv use    the default for QUERIES   - what a passenger needs
+rv_url := func read "rendezvous url [https://110.44.52.98:9000]: ";
+rv add --alias kr --url ${rv_url};
+rv home --alias kr;
