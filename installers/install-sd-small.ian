@@ -25,7 +25,7 @@ requires:
 alias := func read "account alias [me]: ";
 auth unlock --account ${alias};
 
-profile use sd small;
+profile use --engine sd --name small;
 
 model pull https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors --engine sd --kind model --arch sd15 --name v1-5-pruned-emaonly;
 

@@ -28,7 +28,7 @@ auth unlock --account ${alias};
 # .env FIRST, and explicitly. Trusting whatever .env happens to be there means
 # this recipe quietly serves someone else's model on a node where another
 # profile was applied.
-profile use llama small;
+profile use --engine llama --name small;
 
 # Then the model. Creating the engine before the file is in place produces a
 # container with nothing to load.

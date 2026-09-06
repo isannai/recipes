@@ -21,7 +21,7 @@ auth unlock --account ${alias};
 
 # .env BEFORE the download. If the profile is missing the run stops here, which
 # is the cheap failure; stopping after 9GB is the expensive one.
-profile use llama medium;
+profile use --engine llama --name medium;
 
 model pull https://huggingface.co/bartowski/Qwen2.5-14B-Instruct-GGUF/resolve/main/Qwen2.5-14B-Instruct-Q4_K_M.gguf --engine llama --kind model --name Qwen2.5-14B-Q4_K_M;
 
