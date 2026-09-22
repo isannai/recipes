@@ -16,8 +16,65 @@ requires:
 # Who owns this node. Asked rather than hard-coded: "me" is only the alias the
 # bootstrap suggests, and a recipe that assumes it fails on every node where
 # someone typed something else.
-alias := func read "account alias [me]: ";
+# `-default` is what makes the bracket real. The prompt printed "[me]" long
+# before anything implemented it - Enter handed on an empty string and the
+# next line died with "--account required". The runtime now draws the bracket
+# from this same value, so what is shown and what is used cannot disagree.
+alias := func read -default me "account alias (the wallet you created): ";
 auth unlock --account ${alias};
+
+# FIRST, on purpose: every question this recipe asks is asked up front, so the
+# operator can walk away once the download starts. The old order put this last
+# and made a 1GB model download sit between two prompts.
+#
+# The cost, stated: the node is registered before the engine answers, so for the
+# few minutes the install still needs, a caller that finds it gets a 404 from
+# door 7443 (no station bound yet). Being briefly unanswerable is cheaper than an
+# install that stalls on a question nobody is there to answer.
+#
+# Not optional. Without a bookmark isannd has no RV to register to - it logs
+# "no RV selected" once and goes quiet, so the node never shows up in
+# `rv list -remote` and NAT'd peers cannot dial it. Asked rather than
+# hard-coded: the address differs per network.
+#
+# `home`, not `use`. They are not interchangeable:
+#
+#     rv home   where this node REGISTERS - what a serving node needs
+#     rv use    the default for QUERIES   - what a passenger needs
+# The table above is where this address is copied from - it is shown first
+# on purpose, so nobody has to type an address they have not been shown.
+rv list -remote;
+rv_url := func read -default https://110.44.52.98:9000 "rendezvous url (ADDR from the table above): ";
+rv add --alias kr --url ${rv_url};
+rv home --alias kr;
+
+# station FIRST, before the gigabyte. The connector is NOT in the node package -
+# station and probe are mesh releases of their own, and get-isann pulls them only
+# on its SECOND run (the one after `ivm setup`). A provider whose setup ended by
+# hand never gets there, and `mesh start station` then died with "unknown mesh
+# station" - AFTER the model download, at the end of a long install. Pulling it
+# up here means a broken/unreachable release costs seconds, not the download.
+# Already installed answers `[skip]`, so re-running stays a no-op.
+#
+# {os}/{arch}/{ar} are filled with this node's platform - {ar} is the archive
+# extension (zip on Windows, tar.gz elsewhere), so one line works on both.
+mesh pull https://github.com/isannai/mesh/releases/latest/download/station-{os}-{arch}.{ar} --name station;
+
+# Nothing OUTSIDE this machine can reach an engine without station: /svc/* is
+# served only while a station mesh has bound door 7443 and overridden the node's
+# role; with no station the door stays role=passenger and every remote request
+# gets a flat 404. The node runs, and shares nothing.
+#
+# Started before the engine exists on purpose - it binds the door and waits; the
+# engine appears under it a few minutes later. Doing it here keeps the long,
+# unattended half of the recipe (model + docker) at the end.
+#
+# Two commands on purpose - there is no flag that does both:
+#
+#     mesh start   right now      (dies on the next isannd restart)
+#     mesh on      every boot     (does not spawn it now)
+mesh start station;
+mesh on station;
 
 # .env BEFORE the download. If the profile is missing the run stops here, which
 # is the cheap failure; stopping after 9GB is the expensive one.
@@ -33,35 +90,3 @@ docker create llama -prepare;
 # 300s rather than 180: 9GB has to be read off disk and into VRAM before the
 # endpoint answers.
 docker wait --engine llama --timeout 300;
-
-# The engine answers on this machine now, but nothing OUTSIDE it can reach the
-# engine yet. /svc/* is served only while a station mesh has bound door 7443 and
-# overridden its role; with no station the door stays role=passenger and every
-# remote request gets a flat 404. The node runs, and shares nothing.
-#
-# Two commands on purpose - there is no flag that does both:
-#
-#     mesh start   right now      (dies on the next isannd restart)
-#     mesh on      every boot     (does not spawn it now)
-#
-# Assumes the connector is already installed. If `mesh start` says it does not
-# know the name, pull it first: `isann mesh pull isann/station`.
-mesh start station;
-mesh on station;
-
-# LAST, on purpose: this is what makes the node FINDABLE, and a node should not
-# be advertised before it can answer. Everything above has run, so the engine is
-# already serving by the time the entry appears.
-#
-# Not optional. Without a bookmark isannd has no RV to register to - it logs
-# "no RV selected" once and goes quiet, so the node never shows up in
-# `rv list -remote` and NAT'd peers cannot dial it. Asked rather than
-# hard-coded: the address differs per network.
-#
-# `home`, not `use`. They are not interchangeable:
-#
-#     rv home   where this node REGISTERS - what a serving node needs
-#     rv use    the default for QUERIES   - what a passenger needs
-rv_url := func read "rendezvous url [https://110.44.52.98:9000]: ";
-rv add --alias kr --url ${rv_url};
-rv home --alias kr;

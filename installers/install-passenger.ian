@@ -16,17 +16,28 @@
 # Who owns this node. Asked rather than hard-coded: "me" is only the alias the
 # bootstrap suggests, and a recipe that assumes it fails on every node where
 # someone typed something else.
-alias := func read "account alias [me]: ";
+#
+# `-default` is what makes the bracket real. The prompt printed "[me]" long
+# before anything implemented it - Enter handed on an empty string and the next
+# line died with "--account required". The runtime now draws the bracket from
+# this same value, so what is shown and what is used cannot drift apart.
+alias := func read -default me "account alias (the wallet you created): ";
 auth unlock --account ${alias};
+
+# Who is out there. Shown BEFORE the address is asked for, not after: this is
+# the table the address is copied from, and having it last meant typing an
+# address you had not been shown yet. It reads the indexer catalogue rather
+# than the RV, so it works before anything is bookmarked.
+rv list -remote;
 
 # The rendezvous is how nodes find each other. Asked, not hard-coded: this
 # address differs per network, and a wrong one here is silent - commands just
-# find nobody.
-rv_url := func read "rendezvous url [https://110.44.52.98:9000]: ";
+# find nobody. Copy the ADDR from the table above, or press Enter for the one
+# this build ships with.
+rv_url := func read -default https://110.44.52.98:9000 "rendezvous url (ADDR from the table above): ";
 rv add --alias kr --url ${rv_url};
 rv use --alias kr;
 
-# Who is online right now. This reads the indexer catalogue rather than the RV,
-# so it works before anything is bookmarked - and it is where you get the id to
-# put after --nodes.
-rv list -remote;
+# Who is reachable through that rendezvous now that one is set. This is where
+# the id to put after --nodes comes from.
+list nodes;
